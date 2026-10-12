@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Absensi Scan Guru - Profesional Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Pustaka QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Pustaka SheetJS untuk Ekspor ke Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 via-indigo-50/30 to-slate-100 min-h-screen text-slate-800 antialiased p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Header Utama dengan Gambar / Logo -->
+        <header class="bg-white/80 backdrop-blur-md p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Tambahan Gambar / Logo di Sini -->
+                <img src="logo.png.jpg" alt="Logo Sekolah" class="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-sm">
+                
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full tracking-wide uppercase">MI ANNUR XI</span>
+                        <span class="text-xs text-slate-400 font-medium">Kp. Pangkalan RT.03 RW.05 Ds. Barudua</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Absensi Kedatangan & Perpulangan</h1>
+                    <p class="text-sm text-slate-500 mt-1">Scan QR Code untuk merekam jam masuk dan jam pulang secara otomatis.</p>
+                </div>
+            </div>
+            
+            <div id="current-date" class="text-sm font-semibold bg-slate-900 text-white px-5 py-2.5 rounded-2xl shadow-sm"></div>
+        </header>
+
+        <!-- Grid Konten Utama -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Kolom Kiri: Scanner Kamera (Kotak scan diperbesar menjadi 300) -->
+            <div class="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/60 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            📷 <span>Kamera Scanner</span>
+                        </h2>
+                        <span class="relative flex h-3 w-3">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                    </div>
+                    <!-- Area Kamera -->
+                    <div id="reader" class="w-full rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 bg-slate-50"></div>
+                </div>
+                <p class="text-xs text-slate-400 text-center mt-4">Arahkan QR Code ID atau NIP pada bingkai kamera untuk memproses absensi.</p>
+            </div>
+
+            <!-- Kolom Kanan: Input Manual & Panel Aksi -->
+            <div class="lg:col-span-7 bg-white p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200/60 flex flex-col justify-between space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        ⌨️ <span>Input Manual & Informasi</span>
+                    </h2>
+                    
+                    <!-- Form Input Manual -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">NIP / Nama Guru</label>
+                            <div class="flex gap-3">
+                                <input type="text" id="manual-input" placeholder="Ketik NIP atau Nama Guru..." class="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:bg-white text-sm transition font-medium">
+                                <button onclick="processAttendance(document.getElementById('manual-input').value)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-sm font-semibold shadow-md shadow-indigo-200 transition active:scale-95">Proses</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Informasi Panduan -->
+                    <div class="mt-5 p-4 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-start gap-3">
+                        <span class="text-indigo-600 text-lg mt-0.5">💡</span>
+                        <div class="text-xs text-indigo-900 leading-relaxed">
+                            <strong class="font-semibold block mb-0.5">Sistem Deteksi Pintar:</strong>
+                            Scan pertama akan mencatat waktu <strong>Masuk</strong>. Scan kedua di hari yang sama otomatis mencatat waktu <strong>Pulang</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tombol Aksi Ekspor & WhatsApp -->
+                <div class="pt-6 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 shadow-md shadow-emerald-200 transition active:scale-95">
+                        📊 Ekspor ke Sheet (.xlsx)
+                    </button>
+                    <button onclick="sendToWhatsApp()" class="bg-green-600 hover:bg-green-700 text-white py-3 px-5 rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 shadow-md shadow-green-200 transition active:scale-95">
+                        💬 Kirim Rekap ke WA
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Tabel Rekap Kehadiran -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/60 overflow-hidden">
+            <div class="p-6 sm:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Daftar Kehadiran Hari Ini</h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Data tersimpan secara aman di penyimpanan lokal browser.</p>
+                </div>
+                <button onclick="clearData()" class="text-xs text-rose-600 hover:text-rose-700 font-semibold bg-rose-50 hover:bg-rose-100 px-4 py-2.5 rounded-xl transition">
+                    🗑️ Reset Semua Data
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/80 text-slate-400 text-xs uppercase tracking-wider border-b border-slate-100">
+                            <th class="py-4 px-6 font-bold">No</th>
+                            <th class="py-4 px-6 font-bold">Nama / NIP Guru</th>
+                            <th class="py-4 px-6 font-bold">Jam Masuk</th>
+                            <th class="py-4 px-6 font-bold">Jam Pulang</th>
+                            <th class="py-4 px-6 font-bold">Status</th>
+                            <th class="py-4 px-6 font-bold text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-table" class="text-sm divide-y divide-slate-100">
+                        <!-- Data dinamis dimasukkan di sini -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Skrip Logika Aplikasi -->
+    <script>
+        // Tampilkan Tanggal Hari Ini
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('id-ID', options);
+
+        let attendanceList = JSON.parse(localStorage.getItem('attendanceList_guru_pro')) || [];
+
+        function renderTable() {
+            const tbody = document.getElementById('attendance-table');
+            tbody.innerHTML = '';
+
+            if (attendanceList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-slate-400 text-sm font-medium">Belum ada data absensi tercatat hari ini.</td></tr>`;
+                return;
+            }
+
+            attendanceList.forEach((item, index) => {
+                let statusBadge = item.pulang 
+                    ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Selesai</span>`
+                    : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60">Aktif di Sekolah</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50/60 transition">
+                        <td class="py-4 px-6 text-slate-400 font-medium">${index + 1}</td>
+                        <td class="py-4 px-6 font-semibold text-slate-800">${item.name}</td>
+                        <td class="py-4 px-6 text-slate-600 font-medium">${item.masuk}</td>
+                        <td class="py-4 px-6 text-slate-600 font-medium">${item.pulang ? item.pulang : '<span class="text-slate-300 italic font-normal">Belum absen</span>'}</td>
+                        <td class="py-4 px-6">${statusBadge}</td>
+                        <td class="py-4 px-6 text-center">
+                            <button onclick="deleteItem(${index})" class="text-rose-500 hover:text-white hover:bg-rose-600 text-xs bg-rose-50 px-3 py-1.5 rounded-xl font-semibold transition">Hapus</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function processAttendance(name) {
+            if (!name.trim()) return;
+            const cleanName = name.trim();
+            const timeString = new Date().toLocaleTimeString('id-ID');
+            const todayDate = new Date().toLocaleDateString('id-ID');
+
+            let existingUser = attendanceList.find(item => item.name.toLowerCase() === cleanName.toLowerCase() && item.date === todayDate);
+
+            if (!existingUser) {
+                attendanceList.unshift({
+                    date: todayDate,
+                    name: cleanName,
+                    masuk: timeString,
+                    pulang: null
+                });
+            } else if (!existingUser.pulang) {
+                existingUser.pulang = timeString;
+            } else {
+                alert(`Guru "${cleanName}" sudah merampungkan absensi masuk & pulang hari ini.`);
+                document.getElementById('manual-input').value = '';
+                return;
+            }
+
+            localStorage.setItem('attendanceList_guru_pro', JSON.stringify(attendanceList));
+            renderTable();
+            document.getElementById('manual-input').value = '';
+        }
+
+        function deleteItem(index) {
+            if (confirm(`Yakin ingin menghapus data atas nama "${attendanceList[index].name}"?`)) {
+                attendanceList.splice(index, 1);
+                localStorage.setItem('attendanceList_guru_pro', JSON.stringify(attendanceList));
+                renderTable();
+            }
+        }
+
+        // Kotak scan diperbesar ukurannya menjadi 300 piksel
+        let html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader", { fps: 10, qrbox: 300 }, false
+        );
+
+        function onScanSuccess(decodedText) {
+            processAttendance(decodedText);
+            html5QrcodeScanner.pause();
+            setTimeout(() => { html5QrcodeScanner.resume(); }, 3000);
+        }
+
+        html5QrcodeScanner.render(onScanSuccess);
+
+        function exportToExcel() {
+            if (attendanceList.length === 0) {
+                alert("Belum ada data absensi untuk diexport!");
+                return;
+            }
+
+            const worksheetData = [
+                ["No", "Tanggal", "Nama / NIP Guru", "Jam Masuk", "Jam Pulang", "Status"],
+                ...attendanceList.map((item, idx) => [
+                    idx + 1, 
+                    item.date, 
+                    item.name, 
+                    item.masuk, 
+                    item.pulang ? item.pulang : '-', 
+                    item.pulang ? 'Selesai' : 'Aktif'
+                ])
+            ];
+
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Absen Guru");
+
+            XLSX.writeFile(workbook, `Rekap_Absensi_Guru_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function sendToWhatsApp() {
+            if (attendanceList.length === 0) {
+                alert("Belum ada data absensi untuk dikirim!");
+                return;
+            }
+
+            let message = `📋 *REKAP KEHADIRAN GURU*\nTanggal: ${new Date().toLocaleDateString('id-ID')}\n\n`;
+            attendanceList.forEach((item, index) => {
+                let statusPulang = item.pulang ? item.pulang : 'Belum Pulang';
+                message += `${index + 1}. *${item.name}*\n   ➔ Masuk: ${item.masuk} | Pulang: ${statusPulang}\n\n`;
+            });
+
+            const encodedMessage = encodeURIComponent(message);
+            window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+        }
+
+        function clearData() {
+            if (confirm("Peringatan: Menghapus seluruh data absensi hari ini?")) {
+                attendanceList = [];
+                localStorage.removeItem('attendanceList_guru_pro');
+                renderTable();
+            }
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
